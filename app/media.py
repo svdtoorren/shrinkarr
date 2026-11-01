@@ -270,10 +270,81 @@ def video_info(p: dict) -> dict:
 
 # --- ffmpeg commands ------------------------------------------------------------
 
-def plan_streams(p: dict, dts: bool = False) -> dict:
+# --- audio languages ------------------------------------------------------------
+
+# ISO 639-1 and 639-2/T codes -> 639-2/B, the form Matroska uses ("nl"/"nld" -> "dut").
+LANG_ALIASES = {
+    "en": "eng", "nl": "dut", "nld": "dut", "de": "ger", "deu": "ger", "fr": "fre", "fra": "fre",
+    "es": "spa", "it": "ita", "pt": "por", "sv": "swe", "da": "dan", "no": "nor", "nb": "nob", "nn": "nno",
+    "fi": "fin", "pl": "pol", "cs": "cze", "ces": "cze", "sk": "slo", "slk": "slo", "hu": "hun",
+    "ro": "rum", "ron": "rum", "el": "gre", "ell": "gre", "tr": "tur", "ru": "rus", "uk": "ukr",
+    "ja": "jpn", "ko": "kor", "zh": "chi", "zho": "chi", "ar": "ara", "he": "heb", "hi": "hin",
+    "th": "tha", "vi": "vie", "id": "ind", "ms": "may", "msa": "may", "is": "ice", "isl": "ice",
+    "sq": "alb", "sqi": "alb", "hy": "arm", "hye": "arm", "ka": "geo", "kat": "geo", "mk": "mac",
+    "mkd": "mac", "my": "bur", "mya": "bur", "fa": "per", "fas": "per", "eu": "baq", "eus": "baq",
+    "cy": "wel", "cym": "wel", "bo": "tib", "bod": "tib", "hr": "hrv", "sr": "srp", "sl": "slv",
+    "bg": "bul", "et": "est", "lv": "lav", "lt": "lit", "ca": "cat", "gl": "glg", "ga": "gle",
+}
+UNKNOWN_LANGS = {"", "und", "unk", "mis", "mul", "zxx", "unknown"}
+
+
+def track_label(s: dict) -> str:
+    """'dut "Flemish"' for messages."""
+    lang = norm_lang(tag(s, "LANGUAGE")) or "?"
+    title = tag(s, "TITLE")
+    return f'{lang} "{title}"' if title else lang
+
+
+def norm_lang(code) -> str:
+    c = str(code or "").strip().lower().split("-")[0].split("_")[0]
+    return LANG_ALIASES.get(c, c)
+
+
+def audio_rules(s: dict) -> dict:
+    """The language rules from the settings, normalised. No languages = keep every track."""
+    keep = [norm_lang(x) for x in s.get("audio_keep_languages") or [] if norm_lang(x)]
+    words = [str(w).strip().lower() for w in s.get("audio_drop_words") or [] if str(w).strip()]
+    return {"keep": list(dict.fromkeys(keep)), "drop_words": words}
+
+
+def select_audio(audio: list[dict], rules: dict | None) -> list[dict]:
+    """The audio tracks to keep, in their original order.
+
+    - Tracks in a wanted language are kept, unless a drop word is in their title.
+    - A wanted language that would end up without a track keeps its tracks with a drop word after all
+      (a Flemish track when there is no Dutch one), and then the tracks without a language (they may well
+      be that language).
+    - If nothing would be left, every track is kept: a file never loses all its audio.
+    """
+    if not rules or not rules.get("keep") or not audio:
+        return list(audio)
+    keep, words = rules["keep"], rules.get("drop_words") or []
+
+    def lang(s):
+        return norm_lang(tag(s, "LANGUAGE"))
+
+    def dropped_word(s):
+        title = (tag(s, "TITLE") or "").lower()
+        return any(re.search(rf"(?<![a-z]){re.escape(w)}(?![a-z])", title) for w in words)
+
+    chosen = [s for s in audio if lang(s) in keep and not dropped_word(s)]
+    for code in keep:
+        if not any(lang(s) == code for s in chosen):
+            chosen += [s for s in audio if lang(s) == code]
+    if any(not any(lang(s) == code for s in chosen) for code in keep):
+        unknown = [s for s in audio if lang(s) in UNKNOWN_LANGS]
+        chosen += [s for s in unknown if not dropped_word(s)] or unknown
+    if not chosen:
+        return list(audio)
+    ids = {id(s) for s in chosen}
+    return [s for s in audio if id(s) in ids]
+
+
+def plan_streams(p: dict, dts: bool = False, rules: dict | None = None) -> dict:
     """Which streams to keep. Subtitles MKV doesn't support block the conversion.
 
-    With `dts`, the positions (among the audio streams) of DTS tracks to convert to E-AC3 are in "convert".
+    With `dts`, the positions (among the kept audio streams) of DTS tracks to convert to E-AC3 are in
+    "convert". With language `rules`, unwanted audio tracks are left out ("dropped").
     """
     subs, unsupported = [], []
     for s in streams(p, "subtitle"):
@@ -282,9 +353,12 @@ def plan_streams(p: dict, dts: bool = False) -> dict:
             subs.append(s)
         else:
             unsupported.append(c or "unknown")
-    audio = streams(p, "audio")
+    all_audio = streams(p, "audio")
+    audio = select_audio(all_audio, rules)
+    kept = {id(s) for s in audio}
     return {
         "audio": audio,
+        "dropped": [s for s in all_audio if id(s) not in kept],
         "convert": [i for i, s in enumerate(audio) if dts and s.get("codec_name") == "dts"],
         "subs": subs,
         "attachments": [s for s in p.get("streams", []) if s.get("codec_type") == "attachment"],
@@ -321,11 +395,11 @@ def eac3_args(i: int, s: dict) -> list[str]:
 
 def build_cmd(p: dict, src: str, dst: str, enc: dict, quality: int, hw: bool, *, ss: float | None = None,
               t: float | None = None, video_only: bool = False, cc_srt: str | None = None,
-              dts: bool = False, audio_only: bool = False) -> list[str]:
+              dts: bool = False, audio_only: bool = False, rules: dict | None = None) -> list[str]:
     """ffmpeg command for a conversion. `dts` also converts DTS tracks to E-AC3; `audio_only` copies the
-    video and only converts those."""
+    video and only converts those. `rules` leaves out audio tracks in unwanted languages."""
     vi = video_info(p)
-    plan = plan_streams(p, dts)
+    plan = plan_streams(p, dts, rules)
     cmd = [config.FFMPEG, "-hide_banner", "-nostdin", "-y", "-nostats", "-progress", "pipe:1"]
     if not audio_only:
         cmd += encoders.init_args(enc)
@@ -370,13 +444,18 @@ def build_cmd(p: dict, src: str, dst: str, enc: dict, quality: int, hw: bool, *,
                     f"-metadata:s:s:{i}", "title=Closed captions"]
         for i in plan["convert"]:
             cmd += eac3_args(i, plan["audio"][i])
+        # The default track was left out: make the first kept track the default.
+        if any(s.get("disposition", {}).get("default") for s in plan["dropped"]) and plan["audio"] \
+                and not any(s.get("disposition", {}).get("default") for s in plan["audio"]):
+            cmd += ["-disposition:a:0", "default"]
         if not audio_only:
             # The statistics tags of the old video stream are wrong now: drop them.
             for t_ in STAT_TAGS:
                 for suffix in ("", "-eng"):
                     cmd += ["-metadata:s:v:0", f"{t_}{suffix}="]
         mark = "video copy" if audio_only else f"{encoders.codec_name(enc)} q{quality}"
-        cmd += ["-metadata", f"SHRINKARR={mark}" + (" + eac3" if plan["convert"] else "")]
+        cmd += ["-metadata", f"SHRINKARR={mark}" + (" + eac3" if plan["convert"] else "")
+                + (f" - {len(plan['dropped'])} audio" if plan["dropped"] else "")]
     cmd += ["-max_muxing_queue_size", "9999", "-f", "matroska", dst]
     return cmd
 

@@ -54,6 +54,9 @@ DEFAULT_SETTINGS = {
     "min_savings": 15,             # percent; less gain = keep the original
     "keep_days": 0,                # keep replaced originals this many days (0 = delete right away)
     "dts_to_eac3": False,          # convert DTS audio to E-AC3, also in files whose video is already efficient
+    # Audio languages to keep while converting anyway (ISO 639 codes, e.g. ["eng", "dut"]); empty = keep all
+    "audio_keep_languages": [],
+    "audio_drop_words": [],        # also drop tracks with one of these words in the title, e.g. "Commentary"
     "window_enabled": False,       # only start new jobs inside a time window
     "window_start": "01:00",
     "window_end": "08:00",

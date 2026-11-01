@@ -189,7 +189,8 @@ class Worker:
             raise Skip(tr("no_video"))
         vi = media.video_info(p)
         dts = bool(db.get_settings()["dts_to_eac3"])
-        plan = media.plan_streams(p, dts)
+        rules = media.audio_rules(db.get_settings())
+        plan = media.plan_streams(p, dts, rules)
         # Video already efficient: only the audio, if there is DTS to convert.
         audio_only = vi["codec"] in media.EFFICIENT
         if audio_only and not plan["convert"]:
@@ -229,7 +230,7 @@ class Worker:
 
         try:
             res = await media.run_ffmpeg(media.build_cmd(p, src, str(out), enc, q, hw, cc_srt=cc_path,
-                                                         dts=dts, audio_only=audio_only),
+                                                         dts=dts, audio_only=audio_only, rules=rules),
                                          on_progress, self.proc)
         except media.FFmpegError as e:
             self._check_cancel()
@@ -239,7 +240,7 @@ class Worker:
             db.update_job(jid, stage="encode_sw", progress=0)
             hw = False
             res = await media.run_ffmpeg(media.build_cmd(p, src, str(out), enc, q, False, cc_srt=cc_path,
-                                                         dts=dts, audio_only=audio_only),
+                                                         dts=dts, audio_only=audio_only, rules=rules),
                                          on_progress, self.proc)
         self._check_cancel()
         enc_seconds = time.monotonic() - started
@@ -256,6 +257,10 @@ class Worker:
         want_subs = len(plan["subs"]) + (1 if cc_path else 0)
         if n_audio != len(plan["audio"]):
             raise RuntimeError(tr("audio_count", got=n_audio, want=len(plan["audio"])))
+        langs = [media.norm_lang(media.tag(s, "LANGUAGE")) for s in plan["audio"]]
+        if [media.norm_lang(media.tag(s, "LANGUAGE")) for s in oa] != langs:
+            raise RuntimeError(tr("audio_langs", got=", ".join(media.norm_lang(media.tag(s, "LANGUAGE")) or "?" for s in oa),
+                                  want=", ".join(x or "?" for x in langs)))
         for i in plan["convert"]:
             want_ch = min(int(plan["audio"][i].get("channels") or 2), 6)
             if oa[i].get("codec_name") != "eac3" or int(oa[i].get("channels") or 0) not in (want_ch, 6 if want_ch > 2 else 2):
@@ -341,6 +346,8 @@ class Worker:
         asyncio.create_task(self._refresh_later(job["kind"], job["arr_id"]))
         msg = tr("smaller", pct=saved_pct) + (tr("plus_cc") if cc_path else "") + \
             (tr("plus_eac3", n=len(plan["convert"])) if plan["convert"] else "") + \
+            (tr("plus_dropped", n=len(plan["dropped"]), list=", ".join(
+                media.track_label(s) for s in plan["dropped"])) if plan["dropped"] else "") + \
             ("; " + "; ".join(notes) if notes else "")
         extra = {"kept_path": str(kept), "kept_until": time.time() + keep_days * 86400, "orig_path": src} if kept else {}
         return {"size_after": new_size, "message": msg, "path": str(final), **extra}

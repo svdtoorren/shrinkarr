@@ -7,6 +7,7 @@
 - **DTS to E-AC3** (Settings → Encoding, off by default): DTS tracks become E-AC3 (1024 kbit/s for 5.1, 320 kbit/s for stereo; 6.1 and 7.1 are downmixed to 5.1), for TVs and Plex apps that can't play DTS and get it transcoded, often to stereo AAC. Files whose video is already HEVC/AV1 get an audio-only conversion: the video is copied, it takes a minute or two, and the minimum savings don't apply. Track titles keep their language ("7.1 DTS-X English" → "5.1 E-AC3 English"). New Library filter: *With DTS audio*.
 - When no Plex library holds the folder of a replaced file (usually a missing or wrong path in Plex under Settings → Paths), the job message says so and a warning is logged, instead of skipping the Plex scan silently. (#7)
 - The path check also shows where Plex sees each root folder, and whether a Plex library holds it. If not, it suggests a path in Plex from a library with the same folder name; the wizard asks before continuing without one. (#8)
+- **Audio languages** (Settings → Encoding, off by default): when a file is converted anyway, audio tracks outside the languages to keep (e.g. `eng, dut`) are left out, as are tracks with a drop word in the title (e.g. `Commentary`, or `Flemish` for a regional variant with the same language code). A wanted language that would end up without a track keeps its drop-word tracks, then the tracks without a language; a file never loses all its audio. If the default track is left out, the first kept track becomes the default. The verify step checks the languages of the output.
 
 ## 1.0.1
 
