@@ -16,6 +16,17 @@ export const sw = (id, on, label = '') => `<label class="srow" style="margin:0">
 export const field = (label, control, help = '') => `<label class="ff"><span class="ff-l">${label}</span>${control}${help ? `<span class="ff-h">${help}</span>` : ''}</label>`;
 export const inp = (id, value, attrs = '') => `<input class="input" id="${id}" value="${esc(value ?? '')}" autocomplete="off" spellcheck="false" ${attrs}>`;
 export const sel = (id, opts, value) => `<select class="select" id="${id}">${opts.map(([v, l]) => `<option value="${esc(v)}" ${String(v) === String(value) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
+// Audio languages: ISO 639-2/B code (as Matroska uses) and ISO 639-1 code (for the name in the UI language).
+const LANGS = [['alb', 'sq'], ['ara', 'ar'], ['arm', 'hy'], ['baq', 'eu'], ['bul', 'bg'], ['bur', 'my'], ['cat', 'ca'], ['chi', 'zh'], ['cze', 'cs'], ['dan', 'da'], ['dut', 'nl'], ['eng', 'en'], ['est', 'et'], ['fin', 'fi'], ['fre', 'fr'], ['geo', 'ka'], ['ger', 'de'], ['gle', 'ga'], ['glg', 'gl'], ['gre', 'el'], ['heb', 'he'], ['hin', 'hi'], ['hrv', 'hr'], ['hun', 'hu'], ['ice', 'is'], ['ind', 'id'], ['ita', 'it'], ['jpn', 'ja'], ['kor', 'ko'], ['lav', 'lv'], ['lit', 'lt'], ['mac', 'mk'], ['may', 'ms'], ['nno', 'nn'], ['nob', 'nb'], ['nor', 'no'], ['per', 'fa'], ['pol', 'pl'], ['por', 'pt'], ['rum', 'ro'], ['rus', 'ru'], ['slo', 'sk'], ['slv', 'sl'], ['spa', 'es'], ['srp', 'sr'], ['swe', 'sv'], ['tha', 'th'], ['tib', 'bo'], ['tur', 'tr'], ['ukr', 'uk'], ['vie', 'vi'], ['wel', 'cy']];
+const langName = (code) => {
+  const iso1 = (LANGS.find(([b]) => b === code) || [])[1];
+  try { return iso1 ? new Intl.DisplayNames([lang()], { type: 'language' }).of(iso1) : code; } catch { return code; }
+};
+const langChips = (codes) => codes.map((c) => `<span class="badge accent lang-chip">${esc(langName(c))} <span class="muted">${esc(c)}</span>
+  <button type="button" class="lang-x" data-rm="${esc(c)}" aria-label="${esc(t('set.langsRemove', { name: langName(c) }))}">×</button></span>`).join('') || `<span class="muted">${t('set.langsAll')}</span>`;
+const langOptions = (codes) => [['', t('set.langsAdd')], ...LANGS.filter(([b]) => !codes.includes(b))
+  .map(([b]) => [b, `${langName(b)} (${b})`]).sort((a, b) => a[1].localeCompare(b[1]))];
+
 export const card = (id, title, help, body) => `<section class="card" id="${id}"><h3>${title}</h3>${help ? `<p class="help">${help}</p>` : ''}${body}</section>`;
 export const result = (r) => (r.ok
   ? `<span class="res ok">${icon('check', 14)} ${esc(r.text || t('common.ok'))}</span>`
@@ -331,7 +342,10 @@ export async function renderSettings(S) {
         <div class="srow">${sw('dts-on', s.dts_to_eac3, t('set.on'))}</div>
         <h4>${t('set.langs')}</h4><p class="help">${t('set.langsHelp')}</p>
         <div style="display:grid;gap:10px;max-width:480px">
-          ${field(t('set.langsKeep'), inp('langs-keep', (s.audio_keep_languages || []).join(', '), 'placeholder="eng, dut"'), t('set.langsKeepHelp'))}
+          <div class="ff"><span class="ff-l">${t('set.langsKeep')}</span>
+            <div class="srow" id="langs-keep" style="flex-wrap:wrap;gap:6px;margin:0">${langChips(s.audio_keep_languages || [])}</div>
+            ${sel('langs-add', langOptions(s.audio_keep_languages || []), '')}
+            <span class="ff-h">${t('set.langsKeepHelp')}</span></div>
           ${field(t('set.langsDrop'), inp('langs-drop', (s.audio_drop_words || []).join(', '), 'placeholder="Commentary"'), t('set.langsDropHelp'))}
         </div>
         <h4>${t('set.window')}</h4><p class="help">${t('set.windowHelp')}</p>
@@ -404,7 +418,20 @@ export async function renderSettings(S) {
   $('#keep-days').onchange = (e) => save({ keep_days: +e.target.value });
   $('#dts-on').onchange = async (e) => { await save({ dts_to_eac3: e.target.checked }); S.lib = null; };
   const list = (v) => v.split(',').map((x) => x.trim()).filter(Boolean);
-  $('#langs-keep').onchange = (e) => save({ audio_keep_languages: list(e.target.value.toLowerCase()) });
+  let keepLangs = [...(s.audio_keep_languages || [])];
+  const setLangs = async (codes) => {
+    keepLangs = codes;
+    $('#langs-keep').innerHTML = langChips(codes);
+    $('#langs-add').outerHTML = sel('langs-add', langOptions(codes), '');
+    $('#langs-add').onchange = addLang;
+    await save({ audio_keep_languages: codes });
+  };
+  const addLang = (e) => { if (e.target.value) setLangs([...keepLangs, e.target.value]); };
+  $('#langs-add').onchange = addLang;
+  $('#langs-keep').onclick = (e) => {
+    const b = e.target.closest('[data-rm]');
+    if (b) setLangs(keepLangs.filter((c) => c !== b.dataset.rm));
+  };
   $('#langs-drop').onchange = (e) => save({ audio_drop_words: list(e.target.value) });
   const bind = (id, key, val = (e) => e.target.checked) => { $('#' + id).onchange = (e) => save({ [key]: val(e) }); };
   bind('win-on', 'window_enabled'); bind('win-a', 'window_start', (e) => e.target.value); bind('win-b', 'window_end', (e) => e.target.value);

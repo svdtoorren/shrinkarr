@@ -518,3 +518,6 @@ body.login-mode .topbar .tabs, body.login-mode .topbar-right, body.setup-mode .t
   .map-del { justify-self: end; }
   .wiz-card { padding: 18px 16px; }
 }
+
+.lang-chip { display: inline-flex; align-items: center; gap: 6px; }
+.lang-chip .lang-x { border: 0; background: none; color: inherit; cursor: pointer; font-size: 15px; line-height: 1; padding: 0 2px; }
