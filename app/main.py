@@ -162,7 +162,17 @@ def _saved_by_item() -> dict[tuple, int]:
 def _file_view(f: dict, preset: str, model: media.Model, sample, active) -> dict:
     e = media.estimate(f, f["size"], preset, model, sample)
     job = active.get((f["kind"], f["fileId"]))
-    return {**f, "estSize": e["size"], "estSeconds": e["seconds"], "convertible": e["convertible"], "job": job}
+    return {**f, "estSize": e["size"], "estSeconds": e["seconds"], "convertible": e["convertible"], "job": job,
+            "toEac3": e["convertible"] and media.audio_work(f), "dropLangs": _drop_langs(f) if e["convertible"] else []}
+
+
+def _drop_langs(f: dict) -> list[str]:
+    """Languages Sonarr/Radarr report for a file that the language rules would leave out (by code only)."""
+    keep = media.audio_rules(db.get_settings())["keep"]
+    langs = [media.norm_lang(x) for x in (f.get("audio") or "").split("/") if x.strip()]
+    if not keep or not any(x in keep for x in langs):
+        return []
+    return sorted({x for x in langs if x not in keep and x not in media.UNKNOWN_LANGS})
 
 
 def _summary(item: dict, preset: str, model: media.Model, active, saved) -> dict:

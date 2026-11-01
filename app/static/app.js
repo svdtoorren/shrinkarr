@@ -383,7 +383,7 @@ function fileDetails(f) {
     <dt>${t('file.file')}</dt><dd>${esc(f.name)}</dd>
     <dt>${t('file.folder')}</dt><dd class="muted">${esc(f.path.replace(/\/[^/]*$/, ''))}</dd>
     <dt>${t('file.video')}</dt><dd>${esc(f.codecLabel)} · ${f.width}×${f.height} · ${f.bitDepth}-bit · ~${mbps}${f.hdr ? ' · ' + esc(f.hdr) : ''}</dd>
-    <dt>${t('file.audio')}</dt><dd>${esc(f.audioCodec)} ${f.audioChannels || ''} · ${esc(f.audio || t('file.unknown'))} <span class="muted">(${t('file.audioKept')})</span></dd>
+    <dt>${t('file.audio')}</dt><dd>${esc(f.audioCodec)} ${f.audioChannels || ''} · ${esc(f.audio || t('file.unknown'))} <span class="muted">(${[f.toEac3 ? t('file.audioEac3') : '', f.dropLangs?.length ? t('file.audioDrop', { list: f.dropLangs.join(', ') }) : ''].filter(Boolean).join('; ') || t('file.audioKept')})</span></dd>
     <dt>${t('file.subs')}</dt><dd>${esc(f.subs || t('file.none'))} <span class="muted">(${t('file.subsKept')})</span></dd>
     <dt>${t('file.duration')}</dt><dd>${dur(f.duration)}</dd>
     <dt>${t('file.quality')}</dt><dd>${esc(f.quality)}</dd>

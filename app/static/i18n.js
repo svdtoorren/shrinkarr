@@ -53,7 +53,7 @@ export const DICT = {
     'detail.allEfficientMovie': 'This movie is already efficiently encoded or in the queue.',
     'file.file': 'File', 'file.folder': 'Folder', 'file.video': 'Video', 'file.audio': 'Audio', 'file.subs': 'Subtitles',
     'file.duration': 'Duration', 'file.quality': 'Quality', 'file.unknown': 'unknown', 'file.none': 'none',
-    'file.audioKept': 'stays unchanged', 'file.subsKept': 'are kept',
+    'file.audioKept': 'stays unchanged', 'file.audioEac3': 'DTS becomes E-AC3', 'file.audioDrop': '{list} left out', 'file.subsKept': 'are kept',
 
     'queue.auto': 'Auto', 'queue.notBefore': 'not before {time}', 'queue.inWindow': 'starts in the night window',
     'queue.resume': 'Resume', 'queue.pause': 'Pause', 'queue.paused': 'The queue is paused. A running conversion is finished first.',
@@ -229,7 +229,7 @@ export const DICT = {
     'detail.allEfficientMovie': 'Deze film is al efficiënt gecodeerd of staat in de wachtrij.',
     'file.file': 'Bestand', 'file.folder': 'Map', 'file.video': 'Video', 'file.audio': 'Audio', 'file.subs': 'Ondertitels',
     'file.duration': 'Duur', 'file.quality': 'Kwaliteit', 'file.unknown': 'onbekend', 'file.none': 'geen',
-    'file.audioKept': 'blijft ongewijzigd', 'file.subsKept': 'blijven behouden',
+    'file.audioKept': 'blijft ongewijzigd', 'file.audioEac3': 'DTS wordt E-AC3', 'file.audioDrop': '{list} valt weg', 'file.subsKept': 'blijven behouden',
 
     'queue.auto': 'Auto', 'queue.notBefore': 'niet vóór {time}', 'queue.inWindow': 'start in het nachtvenster',
     'queue.resume': 'Hervatten', 'queue.pause': 'Pauzeren', 'queue.paused': 'De wachtrij is gepauzeerd. Een lopende omzetting maakt hij nog af.',
