@@ -295,8 +295,18 @@ async def plex_sections(url: str | None = None, token: str | None = None) -> lis
     return out
 
 
+def in_plex(plex_path: str, library_paths: list[str]) -> bool:
+    """True if a Plex library holds this path, or lies below it (a root folder with several libraries)."""
+    plex_path = plex_path.rstrip("/")
+    for p in library_paths:
+        p = p.rstrip("/")
+        if plex_path == p or plex_path.startswith(p + "/") or p.startswith(plex_path + "/"):
+            return True
+    return False
+
+
 async def plex_refresh(local_path: str) -> bool:
-    """Let Plex rescan only the folder of the file."""
+    """Let Plex rescan only the folder of the file. False if Plex isn't set up or no library holds the folder."""
     s = db.get_settings()
     if not plex_configured(s):
         return False
@@ -310,6 +320,7 @@ async def plex_refresh(local_path: str) -> bool:
                                         headers={"X-Plex-Token": s["plex_token"]})
             r.raise_for_status()
             return True
+    log.warning("No Plex library holds %s; check the Plex path in the path mappings", folder)
     return False
 
 

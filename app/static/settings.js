@@ -111,15 +111,24 @@ export function bindPaths(root, prefix, container, rerender) {
       if (!r.roots.length) { out.innerHTML = `<p class="help">${t('set.pathNoRoots')}</p>`; return; }
       out.innerHTML = `<div class="checks">${r.roots.map((x, i) => `
         <div class="check-row">
-          ${x.exists ? (x.writable ? `<span class="res ok">${icon('check', 14)}</span>` : `<span class="res warn">!</span>`) : `<span class="res bad">${icon('x', 14)}</span>`}
+          ${x.exists ? (x.writable && (!x.plex || x.plex.ok) ? `<span class="res ok">${icon('check', 14)}</span>` : `<span class="res warn">!</span>`) : `<span class="res bad">${icon('x', 14)}</span>`}
           <div style="min-width:0"><div class="mono">${esc(x.arr)} → ${esc(x.local)}</div>
             <div class="ff-h">${x.app === 'radarr' ? 'Radarr' : 'Sonarr'} · ${x.exists ? (x.writable ? t('set.pathOk') : t('set.pathReadOnly')) : t('set.pathMissing')}</div>
             ${x.suggestion ? `<button class="btn sm" data-sug="${i}">${t('set.pathSuggest', { arr: esc(x.suggestion.arr), local: esc(x.suggestion.local) })}</button>` : ''}
+            ${x.plex ? `<div class="ff-h">Plex · ${x.plex.ok ? `<span class="mono">${esc(x.plex.path)}</span>` : `<span style="color:var(--warn)">${t('set.pathNoPlex', { path: esc(x.plex.path) })}</span>`}</div>` : ''}
+            ${x.plex?.suggestion ? `<button class="btn sm" data-psug="${i}">${t('set.pathSuggestPlex', { local: esc(x.plex.suggestion.local), plex: esc(x.plex.suggestion.plex) })}</button>` : ''}
           </div></div>`).join('')}</div>`;
       $$('[data-sug]', out).forEach((b) => { b.onclick = async () => {
         const sg = r.roots[+b.dataset.sug].suggestion;
         const maps = readPaths(root, prefix).filter((m) => m.arr || m.local);
         maps.push({ arr: sg.arr, local: sg.local, plex: '' });
+        await save({ path_mappings: maps }); rerender(); $(`#${prefix}-check`, root)?.click();
+      }; });
+      $$('[data-psug]', out).forEach((b) => { b.onclick = async () => {
+        const sg = r.roots[+b.dataset.psug].plex.suggestion;
+        const maps = readPaths(root, prefix).filter((m) => m.arr || m.local);
+        const same = maps.find((m) => m.arr === sg.arr && m.local === sg.local);
+        if (same) same.plex = sg.plex; else maps.push({ arr: sg.arr, local: sg.local, plex: sg.plex });
         await save({ path_mappings: maps }); rerender(); $(`#${prefix}-check`, root)?.click();
       }; });
     } catch (e) { out.innerHTML = result({ ok: false, error: e.message }); }

@@ -5,6 +5,8 @@
 - A file in a folder Shrinkarr can't write to (a read-only mount, or no permission) is skipped before encoding, instead of failing at the replace step after the whole encode. Such files are not queued, and the Library page warns about read-only root folders. (#6)
 - When replacing fails, cleaning up no longer adds a second error to the log, and putting a kept original back can't be cut short. (#6)
 - **DTS to E-AC3** (Settings → Encoding, off by default): DTS tracks become E-AC3 (1024 kbit/s for 5.1, 320 kbit/s for stereo; 6.1 and 7.1 are downmixed to 5.1), for TVs and Plex apps that can't play DTS and get it transcoded, often to stereo AAC. Files whose video is already HEVC/AV1 get an audio-only conversion: the video is copied, it takes a minute or two, and the minimum savings don't apply. Track titles keep their language ("7.1 DTS-X English" → "5.1 E-AC3 English"). New Library filter: *With DTS audio*.
+- When no Plex library holds the folder of a replaced file (usually a missing or wrong path in Plex under Settings → Paths), the job message says so and a warning is logged, instead of skipping the Plex scan silently. (#7)
+- The path check also shows where Plex sees each root folder, and whether a Plex library holds it. If not, it suggests a path in Plex from a library with the same folder name; the wizard asks before continuing without one. (#8)
 
 ## 1.0.1
 

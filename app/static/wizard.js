@@ -170,6 +170,8 @@ async function validate(name) {
     if (missing.length) { err(t('wiz.paths.missing', { list: missing.map((x) => x.arr).join(', ') })); $('#wp-check').click(); return false; }
     const ro = r.roots.filter((x) => !x.writable);
     if (ro.length && !confirm(t('wiz.paths.readOnly', { list: ro.map((x) => x.local).join(', ') }))) return false;
+    const noPlex = r.roots.filter((x) => x.plex && !x.plex.ok);
+    if (noPlex.length && !confirm(t('wiz.paths.noPlex', { list: noPlex.map((x) => x.plex.path).join(', ') }))) { $('#wp-check').click(); return false; }
     return true;
   }
   if (name === 'login') {

@@ -334,7 +334,8 @@ class Worker:
         except Exception as e:  # noqa: BLE001
             notes.append(tr("rescan_failed", app="Radarr" if job["kind"] == "movie" else "Sonarr", err=e))
         try:
-            await arr.plex_refresh(str(final))
+            if arr.plex_configured() and not await arr.plex_refresh(str(final)):
+                notes.append(tr("plex_nomatch", path=str(Path(arr.to_plex(str(final))).parent)))
         except Exception as e:  # noqa: BLE001
             notes.append(tr("plex_failed", err=e))
         asyncio.create_task(self._refresh_later(job["kind"], job["arr_id"]))

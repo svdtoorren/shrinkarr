@@ -530,6 +530,19 @@ async def test_plex(req: PlexTestReq):
     return await arr.test_plex(req.url, _unmask(req.token, "plex_token"))
 
 
+def _suggest_plex(root: str, local: str, library_paths: list[str]) -> dict | None:
+    """Suggests a Plex path from a library that ends in the same folder name: /data/tv + /mnt/media/tv -> /data -> /mnt/media."""
+    for p in library_paths:
+        a, l_, x = Path(root), Path(local), Path(p)
+        if x.name != l_.name:
+            continue
+        while a.name == l_.name == x.name and a.name and min(len(a.parts), len(l_.parts), len(x.parts)) > 2:
+            a, l_, x = a.parent, l_.parent, x.parent
+        if l_ != x:
+            return {"arr": str(a), "local": str(l_), "plex": str(x)}
+    return None
+
+
 def _suggest_local(arr_root: str) -> str | None:
     """Looks for a folder with the same name under the usual mount points (max. 3 levels deep)."""
     name = Path(arr_root).name
@@ -550,10 +563,18 @@ class PathsReq(BaseModel):
 
 @app.post("/api/test/paths")
 async def test_paths(req: PathsReq):
-    """Checks every root folder of Sonarr/Radarr against the mappings, and suggests missing ones."""
+    """Checks every root folder of Sonarr/Radarr against the mappings (in Shrinkarr and in Plex), and suggests missing ones."""
     pairs = [(m.get("arr", "").rstrip("/"), m.get("local", "").rstrip("/")) for m in req.mappings
              if m.get("arr") and m.get("local")]
+    plex_pairs = [(m["local"].rstrip("/"), (m.get("plex") or m["local"]).rstrip("/")) for m in req.mappings
+                  if m.get("arr") and m.get("local")]
     s = db.get_settings()
+    libraries = None  # paths of the Plex libraries; None = Plex not set up or not reachable
+    if arr.plex_configured(s):
+        try:
+            libraries = [p for d in await arr.plex_sections() for p in d["paths"]]
+        except Exception:  # noqa: BLE001
+            pass
     roots = []
     for app_ in arr.APPS:
         if not arr.configured(app_, s):
@@ -576,6 +597,11 @@ async def test_paths(req: PathsReq):
                 while a.name == l_.name and a.name and len(a.parts) > 1 and len(l_.parts) > 1:
                     a, l_ = a.parent, l_.parent
                 row["suggestion"] = {"arr": str(a), "local": str(l_)}
+        row["plex"] = None
+        if libraries is not None and exists:
+            in_plex = arr._swap(local, plex_pairs) or local
+            ok = arr.in_plex(in_plex, libraries)
+            row["plex"] = {"path": in_plex, "ok": ok, "suggestion": None if ok else _suggest_plex(root, local, libraries)}
         out.append(row)
     return {"roots": out}
 

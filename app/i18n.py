@@ -33,6 +33,7 @@ TEXTS = {
         "reverted": "Undone: the original is back",
         "kept_gone": "The original is no longer there",
         "plex_failed": "Plex scan failed: {err}",
+        "plex_nomatch": "Plex not updated: no Plex library holds {path} (check the Plex path under Settings → Paths)",
         # automatic
         "auto_off": "automatic conversion is off",
         "auto_no_title": "title not found",
@@ -83,6 +84,7 @@ TEXTS = {
         "reverted": "Ongedaan gemaakt: het origineel staat terug",
         "kept_gone": "Het origineel is er niet meer",
         "plex_failed": "Plex-scan mislukt: {err}",
+        "plex_nomatch": "Plex niet bijgewerkt: geen Plex-bibliotheek bevat {path} (controleer het pad in Plex onder Instellingen → Paden)",
         "auto_off": "automatisch omzetten staat uit",
         "auto_no_title": "titel niet gevonden",
         "auto_no_file": "bestand niet gevonden",
