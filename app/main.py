@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from . import arr, auth, auto, config, db, encoders, gpu, media
-from .worker import WORKER, writable
+from .worker import WORKER, in_window, writable
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -353,7 +353,16 @@ async def jobs():
     s = db.get_settings()
     return {"state": WORKER.state, "queue": queue, "recent": recent, "totals": {**tot, "failed": failed},
             "paused": s["paused"], "window": f"{s['window_start']}–{s['window_end']}",
+            "bypass": bool(db.get_state("window_bypass")) and s["window_enabled"] and not in_window(s),
             "autoWindow": f"{s['auto_window_start']}–{s['auto_window_end']}"}
+
+
+@app.post("/api/queue/start-now")
+async def queue_start_now():
+    """Ignore the time window this once: the queue runs until it is empty."""
+    db.set_state("window_bypass", True)
+    WORKER.wake.set()
+    return {"ok": True}
 
 
 @app.get("/api/jobs/{job_id}")

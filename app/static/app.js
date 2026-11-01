@@ -548,7 +548,7 @@ function drawQueue() {
   const root = $('#q-root'); if (!root || !S.jobs) return;
   const J = S.jobs, run = J.queue.find((j) => j.status === 'running'), waiting = J.queue.filter((j) => j.status === 'queued');
   const remaining = (run ? run.eta || 0 : 0) + waiting.reduce((s, j) => s + (j.est_seconds || 0), 0);
-  const sig = JSON.stringify([J.paused, J.state, run?.id, run?.stage, waiting.map((j) => j.id), lang()]);
+  const sig = JSON.stringify([J.paused, J.state, J.bypass, run?.id, run?.stage, waiting.map((j) => j.id), lang()]);
   if (root.dataset.sig !== sig) {
     root.dataset.sig = sig;
     root.innerHTML = `
@@ -562,7 +562,9 @@ function drawQueue() {
       ${!J.paused && J.state === 'waiting_auto' ? `<div class="banner info">${icon('clock', 18)} ${t('queue.onlyAuto', { window: esc(J.autoWindow) })}
         <a class="btn sm" href="#/settings">${t('nav.settings')}</a></div>` : ''}
       ${!J.paused && J.state === 'waiting' ? `<div class="banner info">${icon('clock', 18)} ${t('queue.waiting', { window: esc(J.window) })}
+        <button class="btn sm primary" id="start-now" title="${esc(t('queue.startNowHelp'))}">${I.play} ${t('queue.startNow')}</button>
         <a class="btn sm" href="#/settings">${t('nav.settings')}</a></div>` : ''}
+      ${!J.paused && J.bypass ? `<div class="banner info">${icon('clock', 18)} ${t('queue.bypass', { window: esc(J.window) })}</div>` : ''}
       ${run ? `<div class="card current" id="cur">
         <img class="poster-sm" src="${posterOf(run.kind, run.arr_id)}" alt="" onerror="this.style.visibility='hidden'">
         <div style="min-width:0">
@@ -593,6 +595,7 @@ function drawQueue() {
       const b = e.target.closest('button'); if (!b) return;
       try {
         if (b.id === 'pause-btn' || b.id === 'resume-btn') await put('/api/settings', { paused: b.id === 'pause-btn' });
+        else if (b.id === 'start-now') await post('/api/queue/start-now');
         else if (b.dataset.cancel) {
           if (b.closest('#cur') && !confirm(t('queue.confirmCancel'))) return;
           await api('/api/jobs/' + b.dataset.cancel, { method: 'DELETE' });

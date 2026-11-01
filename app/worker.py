@@ -104,7 +104,7 @@ class Worker:
                     self.state = "setup"
                 elif s["paused"]:
                     self.state = "paused"
-                elif queued and not in_window(s):
+                elif queued and not in_window(s) and not db.get_state("window_bypass"):
                     self.state = "waiting"
                 elif job:
                     self.state = "running"
@@ -114,6 +114,8 @@ class Worker:
                     self.state = "waiting_auto"  # only automatic jobs, outside their window
                 else:
                     self.state = "idle"
+                    if not queued and db.get_state("window_bypass"):
+                        db.set_state("window_bypass", False)  # "start now" lasts until the queue is empty
                 self.wake.clear()
                 try:
                     await asyncio.wait_for(self.wake.wait(), timeout=15)

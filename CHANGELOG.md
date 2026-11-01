@@ -8,6 +8,7 @@
 - **Audio languages** (Settings → Encoding, off by default): when a file is converted anyway, audio tracks outside the languages to keep (picked from a list, e.g. English and Dutch) are left out, as are tracks with a drop word in the title (e.g. `Commentary`, or `Flemish` for a regional variant with the same language code). A wanted language that would end up without a track keeps its drop-word tracks, then the tracks without a language; a file never loses all its audio. If the default track is left out, the first kept track becomes the default. The verify step checks the languages of the output.
 - When no Plex library holds the folder of a replaced file (usually a missing or wrong path in Plex under Settings → Paths), the job message says so and a warning is logged, instead of skipping the Plex scan silently. (#7)
 - The path check also shows where Plex sees each root folder, and whether a Plex library holds it. If not, it suggests a path in Plex from a library with the same folder name; the wizard asks before continuing without one. (#8)
+- **Start now:** the queue page's "Waiting for the time window" banner has a *Start now* button that ignores the window this once, until the queue is empty. Automatic jobs keep their own window.
 
 ## 1.0.1
 
